@@ -6,6 +6,7 @@ const cors = require('cors')
 const fileUpload =  require('express-fileupload')
 const {connectMongoose} = require('./db/connectDb')
 const { fileModel } = require('./models/fileUpload')
+const { router } = require('./routes/routes')
 
 
 // setup cors
@@ -17,6 +18,8 @@ app.use(cors(corsOptions))
 // express usage
 app.use(express.json())
 
+// router usage
+app.use('/', router)
 // testing if the code is working on web local server 
 app.get('/', (req, res)=>{
     res.send("app is running")
