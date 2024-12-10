@@ -7,14 +7,14 @@ const createEvent = async(req, res)=>{
     if(!title || !description){
         res.json({error: "please fill title and description"})
     }
-
+    
     const createdEvent = new eventModel({title, description})
 
     if(!createdEvent){
         res.json({ error: "event was not created"})
     }
     await createdEvent.save()
-   return res.json({message: "event was created successfully", success: true, createdEvent})
+    return res.json({message: "event was created successfully", success: true, createdEvent})
 
 }
 
