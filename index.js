@@ -47,7 +47,7 @@ app.use(fileUpload())
 // Route to generate a unique room link
 app.get('/create-room', (req, res) => {
     const roomId = uuidv4(); // Generate a unique room ID
-    res.json({ roomId, link: `http://localhost:3000/join/${roomId}` });
+    res.json({ roomId, link: `https://godwin-project-backend.onrender.com/join/${roomId}` });
 });
 
 // socket.io code usage
