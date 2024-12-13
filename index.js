@@ -183,7 +183,6 @@
 //     console.log("Server running on http://localhost:5000");
 //   });
 
-
 const express = require("express");
 const http = require("http");
 const { v4: uuidv4 } = require("uuid");
@@ -194,7 +193,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow all origins for development; restrict in production
+        origin: "*", // Allow all origins; restrict this in production
         methods: ["GET", "POST"]
     }
 });
@@ -203,15 +202,19 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Store active rooms and users
-const rooms = {};
+// Root route for testing
+app.get("/", (req, res) => {
+    res.send("Video Call Backend is Running!");
+});
 
 // REST API to create a new room
 app.get("/create-room", (req, res) => {
     const roomId = uuidv4(); // Generate a unique room ID
-    rooms[roomId] = []; // Initialize room with no users
     res.json({ roomId }); // Respond with the new room ID
 });
+
+// Store active rooms and users
+const rooms = {};
 
 // Socket.IO logic
 io.on("connection", (socket) => {
@@ -220,7 +223,7 @@ io.on("connection", (socket) => {
     // Handle joining a room
     socket.on("join-room", (roomId) => {
         if (!rooms[roomId]) {
-            rooms[roomId] = []; // Initialize the room if it doesn't exist
+            rooms[roomId] = []; // Initialize room if it doesn't exist
         }
         rooms[roomId].push(socket.id); // Add user to the room
         socket.join(roomId);
@@ -232,19 +235,16 @@ io.on("connection", (socket) => {
 
     // Handle offer
     socket.on("offer", ({ roomId, signalData, to }) => {
-        console.log(`Offer from ${socket.id} to ${to} in room ${roomId}`);
         io.to(to).emit("offer", { signal: signalData, from: socket.id });
     });
 
     // Handle answer
     socket.on("answer", ({ signalData, to }) => {
-        console.log(`Answer from ${socket.id} to ${to}`);
         io.to(to).emit("answer", { signal: signalData, from: socket.id });
     });
 
     // Handle ICE candidate
     socket.on("ice-candidate", ({ candidate, to }) => {
-        console.log(`ICE candidate from ${socket.id} to ${to}`);
         io.to(to).emit("ice-candidate", { candidate, from: socket.id });
     });
 
