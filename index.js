@@ -184,69 +184,86 @@
 //   });
 
 
-
 const express = require("express");
 const http = require("http");
+const { v4: uuidv4 } = require("uuid");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const { connectMongoose } = require("./db/connectDb");
-// const port = 5000
 
-// Create Express app
 const app = express();
-app.use(cors());
-
-// Serve static files (optional, for testing)
-app.get("/", (req, res) => {
-    res.send("Socket.IO Video Chat Backend");
-});
-
-// Create HTTP server
 const server = http.createServer(app);
-
-// Initialize Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow all origins
+        origin: "*", // Allow all origins for development; restrict in production
         methods: ["GET", "POST"]
     }
 });
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Store active rooms and users
+const rooms = {};
+
+// REST API to create a new room
+app.get("/create-room", (req, res) => {
+    const roomId = uuidv4(); // Generate a unique room ID
+    rooms[roomId] = []; // Initialize room with no users
+    res.json({ roomId }); // Respond with the new room ID
+});
+
+// Socket.IO logic
 io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log("A user connected:", socket.id);
 
-    // Broadcast offers
-    socket.on("offer", ({ roomId, signalData, to }) => {
-        socket.to(to).emit("offer", { signal: signalData, from: socket.id });
-    });
-
-    // Broadcast answers
-    socket.on("answer", ({ signalData, to }) => {
-        socket.to(to).emit("answer", { signal: signalData, from: socket.id });
-    });
-
-    // Broadcast ICE candidates
-    socket.on("ice-candidate", ({ candidate, to }) => {
-        socket.to(to).emit("ice-candidate", { candidate, from: socket.id });
-    });
-
-    // Handle user joining a room
+    // Handle joining a room
     socket.on("join-room", (roomId) => {
+        if (!rooms[roomId]) {
+            rooms[roomId] = []; // Initialize the room if it doesn't exist
+        }
+        rooms[roomId].push(socket.id); // Add user to the room
         socket.join(roomId);
         console.log(`User ${socket.id} joined room ${roomId}`);
-        socket.to(roomId).emit("user-joined", { userId: socket.id });
+
+        // Notify other users in the room
+        socket.to(roomId).emit("user-joined", socket.id);
     });
 
+    // Handle offer
+    socket.on("offer", ({ roomId, signalData, to }) => {
+        console.log(`Offer from ${socket.id} to ${to} in room ${roomId}`);
+        io.to(to).emit("offer", { signal: signalData, from: socket.id });
+    });
+
+    // Handle answer
+    socket.on("answer", ({ signalData, to }) => {
+        console.log(`Answer from ${socket.id} to ${to}`);
+        io.to(to).emit("answer", { signal: signalData, from: socket.id });
+    });
+
+    // Handle ICE candidate
+    socket.on("ice-candidate", ({ candidate, to }) => {
+        console.log(`ICE candidate from ${socket.id} to ${to}`);
+        io.to(to).emit("ice-candidate", { candidate, from: socket.id });
+    });
+
+    // Handle user disconnection
     socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
+        console.log("User disconnected:", socket.id);
+
+        // Remove user from rooms
+        for (const roomId in rooms) {
+            rooms[roomId] = rooms[roomId].filter((id) => id !== socket.id);
+            if (rooms[roomId].length === 0) {
+                delete rooms[roomId]; // Clean up empty rooms
+            }
+        }
     });
 });
 
-// Start server
+// Start the server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, async() => {
-    console.log(`Server running on port ${PORT}`);
-await connectMongoose()
-
-  
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
