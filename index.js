@@ -51,26 +51,50 @@ app.get('/create-room', (req, res) => {
 });
 
 // socket.io code usage
+// io.on("connection", (socket) => {
+//     console.log("User connected:", socket.id);
+  
+//     socket.on("offer", (data) => {
+//       socket.broadcast.emit("offer", data);
+//     });
+  
+//     socket.on("answer", (data) => {
+//       socket.broadcast.emit("answer", data);
+//     });
+  
+//     socket.on("ice-candidate", (data) => {
+//       socket.broadcast.emit("ice-candidate", data);
+//     });
+  
+//     socket.on("disconnect", () => {
+//       console.log("User disconnected:", socket.id);
+//     });
+//   });
+  
 io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
-  
-    socket.on("offer", (data) => {
-      socket.broadcast.emit("offer", data);
-    });
-  
-    socket.on("answer", (data) => {
-      socket.broadcast.emit("answer", data);
-    });
-  
-    socket.on("ice-candidate", (data) => {
-      socket.broadcast.emit("ice-candidate", data);
-    });
-  
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
-    });
+  console.log("User connected:", socket.id);
+
+  socket.on("join-room", (roomId) => {
+      socket.join(roomId);
+      console.log(`User ${socket.id} joined room ${roomId}`);
   });
-  
+
+  socket.on("offer", (data) => {
+      socket.to(data.roomId).emit("offer", data.signalData);
+  });
+
+  socket.on("answer", (data) => {
+      socket.to(data.roomId).emit("answer", data.signalData);
+  });
+
+  socket.on("ice-candidate", (data) => {
+      socket.to(data.roomId).emit("ice-candidate", data.candidate);
+  });
+
+  socket.on("disconnect", () => {
+      console.log("User disconnected:", socket.id);
+  });
+});
 
 // file upload source code 
 // app.post('/upload', async function(req, res) {
