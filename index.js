@@ -244,19 +244,21 @@ io.on("connection", (socket) => {
   });
 });
 
-// Serve the frontend application
-app.use(express.static(path.join(__dirname, "frontend"))); // Adjust the "frontend" directory path as needed
+// Serve the frontend application and handle roomId parameter
+app.use(express.static(path.join(__dirname, "frontend"))); // Serve the static files from the frontend
 
 // Handle all other routes (room links) by serving the frontend
 app.get("*", (req, res) => {
-  const roomId = req.query.roomId; // Capture the roomId from the query string
-  if (roomId) {
-    // You can handle dynamic logic here for rooms if needed
-    res.sendFile(path.join(__dirname, "frontend", "index.html"));
-  } else {
-    res.sendFile(path.join(__dirname, "frontend", "index.html"));
-  }
+    const roomId = req.query.roomId; // Capture the roomId from the query string
+    if (roomId) {
+        // Send the frontend page when roomId is present in the URL
+        res.sendFile(path.join(__dirname, "frontend", "index.html"));
+    } else {
+        // If no roomId, show a default page or redirect
+        res.sendFile(path.join(__dirname, "frontend", "index.html"));
+    }
 });
+
 
 // Start the server and connect to the database
 server.listen(PORT, async () => {
