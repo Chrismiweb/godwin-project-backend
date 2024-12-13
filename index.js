@@ -184,32 +184,29 @@
 //   });
 
 
-
-
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
-const cors = require('cors')
+const cors = require('cors');
 const { connectMongoose } = require("./db/connectDb");
 
 const app = express();
 const server = http.createServer(app);
-// const io = new Server(server);
 const io = new Server(server, {
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-    },
-  });
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
 
-// setup cors
+// Setup CORS
 const corsOptions = {
   origin: '*',
-  optionsSuccessStatus: 200 
-}
-app.use(cors(corsOptions))
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 3000;
 
@@ -217,8 +214,34 @@ app.use(express.json());
 
 // API Route for creating a room
 app.get("/create-room", (req, res) => {
-    const roomId = uuidv4();
-    res.json({ roomId });
+  const roomId = uuidv4();
+  res.json({ roomId });
+});
+
+// WebSocket logic for signaling
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
+    console.log(`User ${socket.id} joined room: ${roomId}`);
+  });
+
+  socket.on("offer", (data) => {
+    socket.to(data.roomId).emit("offer", { signal: data.signalData, from: socket.id });
+  });
+
+  socket.on("answer", (data) => {
+    socket.to(data.roomId).emit("answer", { signal: data.signalData, from: socket.id });
+  });
+
+  socket.on("ice-candidate", (data) => {
+    socket.to(data.roomId).emit("ice-candidate", { candidate: data.candidate, from: socket.id });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
 });
 
 // Serve the frontend application
@@ -226,36 +249,18 @@ app.use(express.static(path.join(__dirname, "frontend"))); // Adjust the "fronte
 
 // Handle all other routes (room links) by serving the frontend
 app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend", "index.html")); // Adjust path if frontend build is elsewhere
+  const roomId = req.query.roomId; // Capture the roomId from the query string
+  if (roomId) {
+    // You can handle dynamic logic here for rooms if needed
+    res.sendFile(path.join(__dirname, "frontend", "index.html"));
+  } else {
+    res.sendFile(path.join(__dirname, "frontend", "index.html"));
+  }
 });
 
-// WebSocket logic for signaling
-io.on("connection", (socket) => {
-    console.log("A user connected:", socket.id);
-
-    socket.on("join-room", (roomId) => {
-        socket.join(roomId);
-        console.log(`User ${socket.id} joined room: ${roomId}`);
-    });
-
-    socket.on("offer", (data) => {
-        socket.to(data.roomId).emit("offer", { signal: data.signalData, from: socket.id });
-    });
-
-    socket.on("answer", (data) => {
-        socket.to(data.roomId).emit("answer", { signal: data.signalData, from: socket.id });
-    });
-
-    socket.on("ice-candidate", (data) => {
-        socket.to(data.roomId).emit("ice-candidate", { candidate: data.candidate, from: socket.id });
-    });
-
-    socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-    });
+// Start the server and connect to the database
+server.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
+  await connectMongoose();
 });
 
-server.listen(PORT, async() => {
-    console.log(`Server running on port ${PORT}`);
-    await connectMongoose()
-});
